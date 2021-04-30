@@ -6,6 +6,7 @@ public class GameManager : MonoBehaviour
 {
     int gridDimension = 8;
     float pixelScale = 1;
+    float randomValueThreshold = 0.8f; // fill only 20% of the cells on startup
 
     public List<Sprite> sprites;
     public GameObject cellPrefab;
@@ -37,7 +38,9 @@ public class GameManager : MonoBehaviour
                 Vector3 cellPositionOffseted = cellPosition + gridOffset;
                 cell.transform.position = cellPositionOffseted;
                 // set sprite
-                cell.GetComponent<SpriteRenderer>().sprite = GetRandomSprite(sprites);
+                if (Random.value > randomValueThreshold) {
+                    cell.GetComponent<SpriteRenderer>().sprite = GetRandomSprite(sprites);
+                }
                 // set logical position, i.e., indices in script
                 // cell.GetComponent<CellController>().indices = new Vector2Int(row, col);
 
@@ -54,4 +57,6 @@ public class GameManager : MonoBehaviour
     Sprite GetRandomSpriteAtIndices(int row, int col) {
         return null;
     }
+
+    // add between 1 to 3 sprites every round
 }
