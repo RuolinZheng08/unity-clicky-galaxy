@@ -5,22 +5,22 @@ using UnityEngine;
 public class CellController : MonoBehaviour
 {
     // shared across the entire controller class
-    private static CellController selectedCell;
-    private SpriteRenderer renderer;
+    static CellController selectedCell;
+    SpriteRenderer spriteRenderer;
     // logial indices into GameManager.grid[row, col]
     public Vector2Int indices;
 
     void Start()
     {
-        renderer = GetComponent<SpriteRenderer>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
     public void Select() {
-        renderer.color = Color.grey;
+        spriteRenderer.color = Color.grey;
     }
 
     public void Deselect() {
-        renderer.color = Color.white;
+        spriteRenderer.color = Color.white;
     }
 
     void OnMouseDown() {
