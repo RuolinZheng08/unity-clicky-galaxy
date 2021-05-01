@@ -70,10 +70,12 @@ public class GameManager : MonoBehaviour
         // false also if there isn't a path from src to dest
 
         // actually make the move
-        // use a coroutine
+        // TODO: use a coroutine for animation
         SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
         dstRenderer.sprite = srcRenderer.sprite;
         srcRenderer.sprite = null;
+        emptyIndices.Remove(dstIndices); // dst now occupied
+        emptyIndices.Add(srcIndices); // src now empty
 
         // detect and score matches
         ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer);
@@ -82,21 +84,32 @@ public class GameManager : MonoBehaviour
         AddSprites();
 
         // detect if grid is full
+        if (IsGridFull()) {
+            GameOver();
+        }
 
         return true;
     }
 
+    void GameOver() {
+        Debug.Log("Game over!");
+    }
+
+    bool IsGridFull() {
+        return emptyIndices.Count == 0;
+    }
+
     void ScoreMatches(int row, int col, SpriteRenderer currRenderer) {
-        HashSet<SpriteRenderer> matchedCells = new HashSet<SpriteRenderer>();
+        HashSet<Vector2Int> matchedIndices = new HashSet<Vector2Int>();
         // only horizontal and vertical matches are possible
-        List<SpriteRenderer> horizontalMatches = new List<SpriteRenderer>();
+        List<Vector2Int> horizontalMatches = new List<Vector2Int>();
         // left
         for (int rr = row - 1; rr >= 0; rr--) {
             SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
             if (renderer == null || renderer.sprite != currRenderer.sprite) {
                 break;
             }
-            horizontalMatches.Add(renderer);
+            horizontalMatches.Add(new Vector2Int(rr, col));
         }
         // right
         for (int rr = row + 1; rr < gridDimension; rr++) {
@@ -104,21 +117,21 @@ public class GameManager : MonoBehaviour
             if (renderer == null || renderer.sprite != currRenderer.sprite) {
                 break;
             }
-            horizontalMatches.Add(renderer);
+            horizontalMatches.Add(new Vector2Int(rr, col));
         }
         if (horizontalMatches.Count >= 2) {
-            matchedCells.UnionWith(horizontalMatches);
-            matchedCells.Add(currRenderer); // add myself
+            matchedIndices.UnionWith(horizontalMatches);
+            matchedIndices.Add(new Vector2Int(row, col)); // add myself
         }
 
-        List<SpriteRenderer> verticalMatches = new List<SpriteRenderer>();
+        List<Vector2Int> verticalMatches = new List<Vector2Int>();
         // down
         for (int cc = col - 1; cc >= 0; cc--) {
             SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
             if (renderer == null || renderer.sprite != currRenderer.sprite) {
                 break;
             }
-            verticalMatches.Add(renderer);
+            verticalMatches.Add(new Vector2Int(row, cc));
         }
         // up
         for (int cc = col + 1; cc < gridDimension; cc++) {
@@ -126,16 +139,18 @@ public class GameManager : MonoBehaviour
             if (renderer == null || renderer.sprite != currRenderer.sprite) {
                 break;
             }
-            verticalMatches.Add(renderer);
+            verticalMatches.Add(new Vector2Int(row, cc));
         }
         if (verticalMatches.Count >= 2) {
-            matchedCells.UnionWith(verticalMatches);
-            matchedCells.Add(currRenderer); // add myself
+            matchedIndices.UnionWith(verticalMatches);
+            matchedIndices.Add(new Vector2Int(row, col)); // add myself
         }
 
         // remove
-        foreach (SpriteRenderer renderer in matchedCells) {
-            renderer.sprite = null;
+        foreach (Vector2Int indices in matchedIndices) {
+            GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
+            // mark cell as empty
+            emptyIndices.Remove(indices);
         }
 
         // TODO: score

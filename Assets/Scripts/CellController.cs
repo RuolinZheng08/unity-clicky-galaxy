@@ -25,8 +25,11 @@ public class CellController : MonoBehaviour
 
     void OnMouseDown() {
         if (selectedCell == null) { // nothing selected yet
-            selectedCell = this;
-            Select();
+            // if nothing on this cell, ignore
+            if (this.spriteRenderer.sprite != null) {
+                selectedCell = this;
+                Select();
+            }
             return;
         }
         if (selectedCell == this) { // deselect
