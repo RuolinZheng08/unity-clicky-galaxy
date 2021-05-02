@@ -32,6 +32,12 @@ public class CellController : MonoBehaviour
     }
 
     void OnMouseDown() {
+        // start the game once a cell is clicked
+        GameManager gameManager = GameManager.Instance;
+        if (gameManager.TitleScreen.activeSelf) {
+            gameManager.TitleScreen.SetActive(false);
+            gameManager.scoreText.gameObject.SetActive(true);
+        }
         if (selectedCell == null) { // nothing selected yet
             // if nothing on this cell, ignore
             if (spriteRenderer.sprite != null && !IsHighlighted()) {

@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -8,6 +9,7 @@ public class GameManager : MonoBehaviour
     int minSpritesToAdd = 2;
     int maxSpritesToAdd = 5; // note that int Range is exclusive
     int gridDimension = 8;
+    int scoreMultiplier = 10; // 10 points per planet
     float pixelScale = 1;
     float randomValueThreshold = 0.8f; // fill only 20% of the cells on startup
 
@@ -22,12 +24,26 @@ public class GameManager : MonoBehaviour
     List<Vector2Int> emptyIndices; // indices at which sprite is null
 
     // GUI
+    public GameObject TitleScreen;
+    public GameObject GameOverScreen;
+    public TextMeshProUGUI scoreText;
+
+    int _score;
+    public int score {
+        get { return _score; }
+        set {
+            _score = value;
+            scoreText.text = "score: " + _score.ToString();
+        }
+    }
 
     // singleton
     public static GameManager Instance { get; private set; }
 
     void Awake() {
         Instance = this;
+        score = 0;
+        GameOverScreen.SetActive(false);
     }
 
     void Start() {
@@ -176,8 +192,19 @@ public class GameManager : MonoBehaviour
         return neighbors;
     }
 
+    void ToggleColliders(bool enabled) {
+        // cells are not clickable when collider disabled
+        for (int row = 0; row < gridDimension; row++) {
+            for (int col = 0; col < gridDimension; col++) {
+                grid[row, col].GetComponent<BoxCollider2D>().enabled = enabled;
+            }
+        }
+    }
+
     void GameOver() {
         Debug.Log("Game over!");
+        ToggleColliders(false);
+        GameOverScreen.SetActive(true);
     }
 
     bool IsGridFull() {
@@ -235,7 +262,8 @@ public class GameManager : MonoBehaviour
 
         StartCoroutine("HighlightAndRemoveMatches", matchedIndices);
 
-        // TODO: score
+        // accumulate score
+        score += matchedIndices.Count * scoreMultiplier;
     }
 
     IEnumerator HighlightAndRemoveMatches(HashSet<Vector2Int> matchedIndices) {
