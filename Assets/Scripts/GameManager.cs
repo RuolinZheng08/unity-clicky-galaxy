@@ -7,9 +7,9 @@ public class GameManager : MonoBehaviour
     int minSpritesToAdd = 1;
     int maxSpritesToAdd = 3; // note that int Range is exclusive
     int gridDimension = 8;
+    float pixelScale = 1;
     float randomValueThreshold = 0.8f; // fill only 20% of the cells on startup
 
-    public float pixelScale = 1;
     public List<Sprite> sprites;
     public GameObject cellPrefab;
 
@@ -24,11 +24,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     void Awake() {
-        if (Instance != null && Instance != this) {
-            Destroy(gameObject);
-        } else {
-            Instance = this;
-        }
+        Instance = this;
     }
 
     void Start() {
@@ -48,7 +44,7 @@ public class GameManager : MonoBehaviour
                 // set parent to be the grid
                 cell.transform.parent = transform;
                 // set position to draw
-                Vector3 cellPosition = GetPositionOfIndices(row, col);
+                Vector3 cellPosition = new Vector3(col * pixelScale, row * pixelScale, 0);
                 Vector3 cellPositionOffseted = cellPosition + gridOffset;
                 cell.transform.position = cellPositionOffseted;
                 // set sprite
@@ -65,14 +61,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    Vector3 GetPositionOfIndices(int row, int col) {
-        return new Vector3(col * pixelScale, row * pixelScale, 0);
-    }
-
-    Vector2Int GetIndicesOfPosition(Vector3 position) {
-        return new Vector2Int(position.x / pixelScale, position.y / pixelScale);
-    }
-
     public bool TryMoveCell(Vector2Int srcIndices, Vector2Int dstIndices) {
         SpriteRenderer dstRenderer = GetSpriteRendererAtIndices(dstIndices.x, dstIndices.y);
         // false if destination is already occupied
@@ -80,7 +68,7 @@ public class GameManager : MonoBehaviour
             return false;
         }
         // false also if there isn't a path from src to dest
-        List<Vector3> path = BreadthFirstSearch(srcIndices, dstIndices);
+        List<Vector2Int> path = BreadthFirstSearch(srcIndices, dstIndices);
         if (path == null) {
             return false;
         }
@@ -90,22 +78,16 @@ public class GameManager : MonoBehaviour
         SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
         GameObject srcCell = grid[srcIndices.x, srcIndices.y];
         srcCell.GetComponent<CellController>().Clear();
-
-        // visually move srcCell and dstCell
-
-
-        // swap src and dst game objects in logical grid
-        grid[srcIndices.x, srcIndices.y] = grid[dstIndices.x, dstIndices.y];
-        grid[dstIndices.x, dstIndices.y] = srcCell;
-
+        dstRenderer.sprite = srcRenderer.sprite;
+        srcRenderer.sprite = null;
         emptyIndices.Remove(dstIndices); // dst now occupied
         emptyIndices.Add(srcIndices); // src now empty
 
         // detect and score matches
-        // ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer, false);
+        ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer, false);
 
         // add new sprites
-        // AddSprites();
+        AddSprites();
 
         // detect if grid is full
         if (IsGridFull()) {
@@ -115,20 +97,14 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    IEnumerator MoveAlongPath() {
-
-    }
-
-    List<Vector3> BreadthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
+    List<Vector2Int> BreadthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
         // identify a path from srcIndices to dstIndices, could be null
-        // the path does not contain srcIndices
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
         Queue<Vector2Int> nodeQueue = new Queue<Vector2Int>();
-        Queue<List<Vector3>> pathQueue = new Queue<List<Vector3>>();
+        Queue<List<Vector2Int>> pathQueue = new Queue<List<Vector2Int>>();
 
-        List<Vector3> startPath = new List<Vector3>();
-        Vector3 srcPosition = GetPositionOfIndices(srcIndices.x, srcIndices.y);
-        startPath.Add(srcPosition);
+        List<Vector2Int> startPath = new List<Vector2Int>();
+        startPath.Add(srcIndices);
         pathQueue.Enqueue(startPath);
         nodeQueue.Enqueue(srcIndices);
 
@@ -137,13 +113,9 @@ public class GameManager : MonoBehaviour
             if (visited.Contains(node)) {
                 continue;
             }
-            List<Vector3> path = pathQueue.Dequeue();
-            // for computing direction of movement
-            Vector3 prevNodePosition = path[path.Count - 1];
-
+            List<Vector2Int> path = pathQueue.Dequeue();
             if (node == dstIndices) { // done
-                Vector3 dstPosition = GetPositionOfIndices(dstIndices.x, dstIndices.y);
-                path.Add(dstPosition);
+                path.Add(node);
                 return path;
             }
             visited.Add(node);
@@ -151,10 +123,8 @@ public class GameManager : MonoBehaviour
             foreach (Vector2Int neighbor in neighbors) {
                 Sprite sprite = GetSpriteAtIndices(neighbor.x, neighbor.y);
                 if (sprite == null) { // can visit this next
-                    List<Vector3> newPath = new List<Vector3>(path);
-                    Vector3 neighborPosition = GetPositionOfIndices(neighbor.x, neighbor.y);
-                    Vector3 direction = neighborPosition - prevNodePosition;
-                    newPath.Add(direction);
+                    List<Vector2Int> newPath = new List<Vector2Int>(path);
+                    newPath.Add(neighbor);
                     pathQueue.Enqueue(newPath);
                     nodeQueue.Enqueue(neighbor);
                 }
