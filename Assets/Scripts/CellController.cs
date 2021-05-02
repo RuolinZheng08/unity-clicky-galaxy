@@ -27,10 +27,14 @@ public class CellController : MonoBehaviour
         spriteRenderer.color = Color.red;
     }
 
+    bool IsHighlighted() {
+        return spriteRenderer.color == Color.red;
+    }
+
     void OnMouseDown() {
         if (selectedCell == null) { // nothing selected yet
             // if nothing on this cell, ignore
-            if (spriteRenderer.sprite != null) {
+            if (spriteRenderer.sprite != null && !IsHighlighted()) {
                 selectedCell = this;
                 Select();
             }
