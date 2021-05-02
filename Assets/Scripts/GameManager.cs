@@ -49,7 +49,7 @@ public class GameManager : MonoBehaviour
                 cell.transform.position = cellPositionOffseted;
                 // set sprite
                 if (Random.value > randomValueThreshold) {
-                    cell.GetComponent<SpriteRenderer>().sprite = GetRandomSpriteForIndices(row, col);
+                    cell.GetComponent<SpriteRenderer>().sprite = GetRandomSpriteForIndices(row, col, true);
                 }  else { // record this index since its sprite is null
                     emptyIndices.Add(new Vector2Int(row, col));
                 }
@@ -72,13 +72,15 @@ public class GameManager : MonoBehaviour
         // actually make the move
         // TODO: use a coroutine for animation
         SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
+        GameObject srcCell = grid[srcIndices.x, srcIndices.y];
+        srcCell.GetComponent<CellController>().Deselect();
         dstRenderer.sprite = srcRenderer.sprite;
         srcRenderer.sprite = null;
         emptyIndices.Remove(dstIndices); // dst now occupied
         emptyIndices.Add(srcIndices); // src now empty
 
         // detect and score matches
-        ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer);
+        ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer, false);
 
         // add new sprites
         AddSprites();
@@ -99,18 +101,13 @@ public class GameManager : MonoBehaviour
         return emptyIndices.Count == 0;
     }
 
-    void ScoreMatches(int row, int col, SpriteRenderer currRenderer) {
+
+
+    void ScoreMatches(int row, int col, SpriteRenderer currRenderer, bool globalScan) {
+        // if scanning globally, only need to scan to the right and up
         HashSet<Vector2Int> matchedIndices = new HashSet<Vector2Int>();
         // only horizontal and vertical matches are possible
         List<Vector2Int> horizontalMatches = new List<Vector2Int>();
-        // left
-        for (int rr = row - 1; rr >= 0; rr--) {
-            SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
-            if (renderer == null || renderer.sprite != currRenderer.sprite) {
-                break;
-            }
-            horizontalMatches.Add(new Vector2Int(rr, col));
-        }
         // right
         for (int rr = row + 1; rr < gridDimension; rr++) {
             SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
@@ -119,20 +116,22 @@ public class GameManager : MonoBehaviour
             }
             horizontalMatches.Add(new Vector2Int(rr, col));
         }
+        // left
+        if (!globalScan) {
+            for (int rr = row - 1; rr >= 0; rr--) {
+                SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
+                if (renderer == null || renderer.sprite != currRenderer.sprite) {
+                    break;
+                }
+                horizontalMatches.Add(new Vector2Int(rr, col));
+            }
+        }
         if (horizontalMatches.Count >= 2) {
             matchedIndices.UnionWith(horizontalMatches);
             matchedIndices.Add(new Vector2Int(row, col)); // add myself
         }
 
         List<Vector2Int> verticalMatches = new List<Vector2Int>();
-        // down
-        for (int cc = col - 1; cc >= 0; cc--) {
-            SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
-            if (renderer == null || renderer.sprite != currRenderer.sprite) {
-                break;
-            }
-            verticalMatches.Add(new Vector2Int(row, cc));
-        }
         // up
         for (int cc = col + 1; cc < gridDimension; cc++) {
             SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
@@ -140,6 +139,16 @@ public class GameManager : MonoBehaviour
                 break;
             }
             verticalMatches.Add(new Vector2Int(row, cc));
+        }
+        // down
+        if (!globalScan) {
+            for (int cc = col - 1; cc >= 0; cc--) {
+                SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
+                if (renderer == null || renderer.sprite != currRenderer.sprite) {
+                    break;
+                }
+                verticalMatches.Add(new Vector2Int(row, cc));
+            }
         }
         if (verticalMatches.Count >= 2) {
             matchedIndices.UnionWith(verticalMatches);
@@ -150,7 +159,7 @@ public class GameManager : MonoBehaviour
         foreach (Vector2Int indices in matchedIndices) {
             GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
             // mark cell as empty
-            emptyIndices.Remove(indices);
+            emptyIndices.Add(indices);
         }
 
         // TODO: score
@@ -159,12 +168,15 @@ public class GameManager : MonoBehaviour
     void AddSprites() {
         int numSpritesToAdd = Random.Range(minSpritesToAdd, maxSpritesToAdd + 1);
         for (int unused = 0; unused < numSpritesToAdd; unused++) {
+            if (emptyIndices.Count == 0) {
+                break;
+            }
             int idx = Random.Range(0, emptyIndices.Count);
             Vector2Int cell = emptyIndices[idx];
             int row = cell.x;
             int col = cell.y;
             // fill in a random sprite in this cell
-            GetSpriteRendererAtIndices(row, col).sprite = GetRandomSpriteForIndices(row, col);
+            GetSpriteRendererAtIndices(row, col).sprite = GetRandomSpriteForIndices(row, col, false);
             emptyIndices.RemoveAt(idx); // no longer empty
         }
     }
@@ -174,23 +186,46 @@ public class GameManager : MonoBehaviour
         return sprites[idx];
     }
 
-    Sprite GetRandomSpriteForIndices(int row, int col) {
-        // make it impossible to get three in a row upon starting up
-        // since the grid grows upward and to the right
-        // need to check the left and the bottom
+    Sprite GetRandomSpriteForIndices(int row, int col, bool startup) {
+        // avoid three in a row
         List<Sprite> possibleSprites = new List<Sprite>(sprites);
+
+        // only need to check left and down when initializing the grid at startup
+        // since the grid grows to the right and up
         Sprite left1 = GetSpriteAtIndices(row, col - 1);
         Sprite left2 = GetSpriteAtIndices(row, col - 2);
-        if (left2 != null && left1 == left2) { // cannot use this sprite
-            possibleSprites.Remove(left1);
-        }
-
         Sprite down1 = GetSpriteAtIndices(row - 1, col);
         Sprite down2 = GetSpriteAtIndices(row - 2, col);
-        if (down2 != null && down1 == down2) { // cannot use this sprite
+
+        // cannot use this sprite if there are already two identicals on one side
+        if (left2 != null && left1 == left2) {
+            possibleSprites.Remove(left1);
+        }
+        if (down2 != null && down1 == down2) {
             possibleSprites.Remove(down1);
         }
 
+        if (!startup) {
+            Sprite right1 = GetSpriteAtIndices(row, col + 1);
+            Sprite right2 = GetSpriteAtIndices(row, col + 2);
+            Sprite up1 = GetSpriteAtIndices(row + 1, col);
+            Sprite up2 = GetSpriteAtIndices(row + 2, col);
+
+            if (right2 != null && right1 == right2) {
+                possibleSprites.Remove(right1);
+            }
+            if (up2 != null && up1 == up2) {
+                possibleSprites.Remove(up1);
+            }
+            // cannot use this sprite if it's sandwiched between two identicals
+            if (left1 != null && left1 == right1) {
+                // implicitly right1 cannot be null
+                possibleSprites.Remove(left1);
+            }
+            if (down1 != null && down1 == up1) {
+                possibleSprites.Remove(down1);
+            }
+        }
         return GetRandomSprite(possibleSprites);
     }
 
