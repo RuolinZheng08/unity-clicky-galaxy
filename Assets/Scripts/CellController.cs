@@ -10,8 +10,7 @@ public class CellController : MonoBehaviour
     // logial indices into GameManager.grid[row, col]
     public Vector2Int indices;
 
-    void Start()
-    {
+    void Start() {
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
