@@ -49,7 +49,7 @@ public class GameManager : MonoBehaviour
                 cell.transform.position = cellPositionOffseted;
                 // set sprite
                 if (Random.value > randomValueThreshold) {
-                    cell.GetComponent<SpriteRenderer>().sprite = GetRandomSpriteForIndices(row, col, true);
+                    cell.GetComponent<CellController>().logicalSprite = GetRandomSpriteForIndices(row, col, true);
                 }  else { // record this index since its sprite is null
                     emptyIndices.Add(new Vector2Int(row, col));
                 }
@@ -62,29 +62,28 @@ public class GameManager : MonoBehaviour
     }
 
     public bool TryMoveCell(Vector2Int srcIndices, Vector2Int dstIndices) {
-        SpriteRenderer dstRenderer = GetSpriteRendererAtIndices(dstIndices.x, dstIndices.y);
+        CellController dstController = GetCellControllerAtIndices(dstIndices.x, dstIndices.y);
         // false if destination is already occupied
-        if (dstRenderer != null && dstRenderer.sprite != null) {
+        if (dstController != null && dstController.logicalSprite != null) {
             return false;
         }
         // false also if there isn't a path from src to dest
-        List<Vector2Int> path = DepthFirstSearch(srcIndices, dstIndices);
+        List<Vector2Int> path = BreadthFirstSearch(srcIndices, dstIndices);
         if (path == null) {
             return false;
         }
 
         // actually make the move
-        // TODO: use a coroutine for animation
-        SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
         GameObject srcCell = grid[srcIndices.x, srcIndices.y];
         srcCell.GetComponent<CellController>().Clear();
-        dstRenderer.sprite = srcRenderer.sprite;
-        srcRenderer.sprite = null;
+        // move animation
+        StartCoroutine("MoveAlongPath", path);
+        // update the empty cells on the grid
         emptyIndices.Remove(dstIndices); // dst now occupied
         emptyIndices.Add(srcIndices); // src now empty
 
         // detect and score matches
-        ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer, false);
+        ScoreMatches(dstIndices.x, dstIndices.y, dstController, false);
 
         // add new sprites
         AddSprites();
@@ -97,21 +96,42 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    List<Vector2Int> DepthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
+    IEnumerator WaitForMoveToFinish(List<Vector2Int> path) {
+        yield return StartCoroutine("MoveAlongPath", path);
+    }
+
+    IEnumerator MoveAlongPath(List<Vector2Int> path) {
+        // path contains the src and dst nodes as well
+        Sprite sprite = GetSpriteAtIndices(path[0].x, path[0].y);
+        for (int i = 1; i < path.Count; i++) {
+            Vector2Int currIndices = path[i];
+            Vector2Int prevIndices = path[i - 1];
+            // use physical sprite here for animation instead of logical sprite
+            GetSpriteRendererAtIndices(currIndices.x, currIndices.y).sprite = sprite;
+            GetSpriteRendererAtIndices(prevIndices.x, prevIndices.y).sprite = null;
+            yield return new WaitForSeconds(0.1f);
+        }
+    }
+
+    List<Vector2Int> BreadthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
         // identify a path from srcIndices to dstIndices, could be null
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
-        Stack<Vector2Int> nodeStack = new Stack<Vector2Int>();
-        Stack<List<Vector2Int>> pathStack = new Stack<List<Vector2Int>>();
-        nodeStack.Push(srcIndices);
-        pathStack.Push(new List<Vector2Int>());
+        Queue<Vector2Int> nodeQueue = new Queue<Vector2Int>();
+        Queue<List<Vector2Int>> pathQueue = new Queue<List<Vector2Int>>();
 
-        while (nodeStack.Count > 0) {
-            Vector2Int node = nodeStack.Pop();
+        List<Vector2Int> startPath = new List<Vector2Int>();
+        startPath.Add(srcIndices);
+        pathQueue.Enqueue(startPath);
+        nodeQueue.Enqueue(srcIndices);
+
+        while (nodeQueue.Count > 0) {
+            Vector2Int node = nodeQueue.Dequeue();
             if (visited.Contains(node)) {
                 continue;
             }
-            List<Vector2Int> path = pathStack.Pop();
+            List<Vector2Int> path = pathQueue.Dequeue();
             if (node == dstIndices) { // done
+                path.Add(node);
                 return path;
             }
             visited.Add(node);
@@ -121,8 +141,8 @@ public class GameManager : MonoBehaviour
                 if (sprite == null) { // can visit this next
                     List<Vector2Int> newPath = new List<Vector2Int>(path);
                     newPath.Add(neighbor);
-                    pathStack.Push(newPath);
-                    nodeStack.Push(neighbor);
+                    pathQueue.Enqueue(newPath);
+                    nodeQueue.Enqueue(neighbor);
                 }
             }
         }
@@ -158,15 +178,15 @@ public class GameManager : MonoBehaviour
         return emptyIndices.Count == 0;
     }
 
-    void ScoreMatches(int row, int col, SpriteRenderer currRenderer, bool globalScan) {
+    void ScoreMatches(int row, int col, CellController currController, bool globalScan) {
         // if scanning globally, only need to scan to the right and up
         HashSet<Vector2Int> matchedIndices = new HashSet<Vector2Int>();
         // only horizontal and vertical matches are possible
         List<Vector2Int> horizontalMatches = new List<Vector2Int>();
         // right
         for (int rr = row + 1; rr < gridDimension; rr++) {
-            SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
-            if (renderer == null || renderer.sprite != currRenderer.sprite) {
+            CellController controller = GetCellControllerAtIndices(rr, col);
+            if (controller == null || controller.logicalSprite != controller.logicalSprite) {
                 break;
             }
             horizontalMatches.Add(new Vector2Int(rr, col));
@@ -174,8 +194,8 @@ public class GameManager : MonoBehaviour
         // left
         if (!globalScan) {
             for (int rr = row - 1; rr >= 0; rr--) {
-                SpriteRenderer renderer = GetSpriteRendererAtIndices(rr, col);
-                if (renderer == null || renderer.sprite != currRenderer.sprite) {
+                CellController controller = GetCellControllerAtIndices(rr, col);
+                if (controller == null || controller.logicalSprite != controller.logicalSprite) {
                     break;
                 }
                 horizontalMatches.Add(new Vector2Int(rr, col));
@@ -189,8 +209,8 @@ public class GameManager : MonoBehaviour
         List<Vector2Int> verticalMatches = new List<Vector2Int>();
         // up
         for (int cc = col + 1; cc < gridDimension; cc++) {
-            SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
-            if (renderer == null || renderer.sprite != currRenderer.sprite) {
+            CellController controller = GetCellControllerAtIndices(row, cc);
+            if (controller == null || controller.logicalSprite != controller.logicalSprite) {
                 break;
             }
             verticalMatches.Add(new Vector2Int(row, cc));
@@ -198,8 +218,8 @@ public class GameManager : MonoBehaviour
         // down
         if (!globalScan) {
             for (int cc = col - 1; cc >= 0; cc--) {
-                SpriteRenderer renderer = GetSpriteRendererAtIndices(row, cc);
-                if (renderer == null || renderer.sprite != currRenderer.sprite) {
+                CellController controller = GetCellControllerAtIndices(row, cc);
+                if (controller == null || controller.logicalSprite != controller.logicalSprite) {
                     break;
                 }
                 verticalMatches.Add(new Vector2Int(row, cc));
@@ -224,7 +244,7 @@ public class GameManager : MonoBehaviour
         yield return new WaitForSeconds(1);
         // remove
         foreach (Vector2Int indices in matchedIndices) {
-            GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
+            GetCellControllerAtIndices(indices.x, indices.y).logicalSprite = null;
             // mark cell as empty
             emptyIndices.Add(indices);
             // remove highlight
@@ -244,7 +264,7 @@ public class GameManager : MonoBehaviour
             int row = cell.x;
             int col = cell.y;
             // fill in a random sprite in this cell
-            GetSpriteRendererAtIndices(row, col).sprite = GetRandomSpriteForIndices(row, col, false);
+            GetCellControllerAtIndices(row, col).logicalSprite = GetRandomSpriteForIndices(row, col, false);
             emptyIndices.RemoveAt(idx); // no longer empty
         }
     }
@@ -295,6 +315,14 @@ public class GameManager : MonoBehaviour
             }
         }
         return GetRandomSprite(possibleSprites);
+    }
+
+    CellController GetCellControllerAtIndices(int row, int col) {
+        if (col < 0 || col >= gridDimension || row < 0 || row >= gridDimension) {
+            return null;
+        }
+        GameObject cell = grid[row, col];
+        return cell.GetComponent<CellController>();
     }
 
     SpriteRenderer GetSpriteRendererAtIndices(int row, int col) {
