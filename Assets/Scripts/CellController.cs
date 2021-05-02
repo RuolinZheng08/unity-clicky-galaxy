@@ -7,15 +7,6 @@ public class CellController : MonoBehaviour
     // shared across the entire controller class
     static CellController selectedCell;
     SpriteRenderer spriteRenderer;
-    // as opposed to the physical sprite shown
-    public Sprite logicalSprite {
-        get { return logicalSprite; }
-        set {
-            // update to logical sprite will reflect on physical sprite
-            spriteRenderer.sprite = value;
-            logicalSprite = value;
-        }
-    }
     // logial indices into GameManager.grid[row, col]
     public Vector2Int indices;
 
@@ -52,6 +43,7 @@ public class CellController : MonoBehaviour
             bool hasMoved = GameManager.Instance.TryMoveCell(selectedCell.indices, indices);
             if (hasMoved) { // deselect
                 selectedCell = null;
+                // Clear();
             }
             // else retains selection
         }
