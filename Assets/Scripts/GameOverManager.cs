@@ -10,7 +10,7 @@ public class GameOverManager : MonoBehaviour
     public TextMeshProUGUI newHighScoreText;
 
     void OnEnable() {
-        int score = GameManager.Instance.score;
+        int score = PlayerPrefs.GetInt("score", 0);
         int highScore = LoadHighScore();
         if (score > highScore) {
             highScore = score;
@@ -30,5 +30,6 @@ public class GameOverManager : MonoBehaviour
 
     void SaveHighScore(int highScore) {
         PlayerPrefs.SetInt("highScore", highScore);
+        PlayerPrefs.Save();
     }
 }

@@ -24,8 +24,8 @@ public class GameManager : MonoBehaviour
     List<Vector2Int> emptyIndices; // indices at which sprite is null
 
     // GUI
-    public GameObject TitleScreen;
-    public GameObject GameOverScreen;
+    public GameObject titleScreen;
+    public GameObject gameOverScreen;
     public TextMeshProUGUI scoreText;
 
     int _score;
@@ -43,13 +43,29 @@ public class GameManager : MonoBehaviour
     void Awake() {
         Instance = this;
         score = 0;
-        GameOverScreen.SetActive(false);
+        gameOverScreen.SetActive(false);
     }
 
     void Start() {
         emptyIndices = new List<Vector2Int>();
         grid = new GameObject[gridDimension, gridDimension];
         InitGrid();
+    }
+
+    void OnMouseDown() {
+        if (IsShowingTitle()) {
+            StartGame();
+        }
+    }
+
+    bool IsShowingTitle() {
+        return titleScreen.activeSelf;
+    }
+
+    void StartGame() {
+        GetComponent<BoxCollider2D>().enabled = false;
+        titleScreen.SetActive(false);
+        scoreText.gameObject.SetActive(true);
     }
 
     void InitGrid() {
@@ -97,13 +113,14 @@ public class GameManager : MonoBehaviour
         GameObject srcCell = grid[srcIndices.x, srcIndices.y];
         srcCell.GetComponent<CellController>().Clear();
 
-        // set dst sprite for ScoreMatches detection
-        dstRenderer.sprite = srcRenderer.sprite;
-        StartCoroutine("MoveAlongPath", path);
-
-        // logical update
+        // logical update before GUI update
         emptyIndices.Remove(dstIndices); // dst now occupied
         emptyIndices.Add(srcIndices); // src now empty
+
+        // set dst sprite for ScoreMatches detection
+        dstRenderer.sprite = srcRenderer.sprite;
+        // this coroutine changes emptyIndices internally
+        StartCoroutine("MoveAlongPath", path);
 
         // detect and score matches
         ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer);
@@ -118,6 +135,7 @@ public class GameManager : MonoBehaviour
             renderer.sprite = highlightSprite;
         }
         // before waiting, mark the indices at which sprites are going to be added as occupied
+        // this function call changes emptyIndices internally
         HashSet<Vector2Int> indicesToAddSprites = GetIndicesToAddSprites();
 
         yield return new WaitForSeconds(1);
@@ -204,7 +222,10 @@ public class GameManager : MonoBehaviour
     void GameOver() {
         Debug.Log("Game over!");
         ToggleColliders(false);
-        GameOverScreen.SetActive(true);
+        // record score
+        PlayerPrefs.SetInt("score", score);
+        PlayerPrefs.Save();
+        gameOverScreen.SetActive(true);
     }
 
     bool IsGridFull() {
@@ -271,13 +292,13 @@ public class GameManager : MonoBehaviour
         foreach (Vector2Int indices in matchedIndices) {
             GameObject cell = grid[indices.x, indices.y];
             cell.GetComponent<CellController>().Highlight();
+            // logically mark cell as empty before waiting
+            emptyIndices.Add(indices);
         }
         yield return new WaitForSeconds(1);
         // remove
         foreach (Vector2Int indices in matchedIndices) {
             GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
-            // mark cell as empty
-            emptyIndices.Add(indices);
             // remove highlight
             GameObject cell = grid[indices.x, indices.y];
             cell.GetComponent<CellController>().Clear();
@@ -285,6 +306,7 @@ public class GameManager : MonoBehaviour
     }
 
     HashSet<Vector2Int> GetIndicesToAddSprites() {
+        // this function changes emptyIndices internally
         HashSet<Vector2Int> indicesToAddSprites = new HashSet<Vector2Int>();
         int numSpritesToAdd = Random.Range(minSpritesToAdd, maxSpritesToAdd + 1);
         for (int unused = 0; unused < numSpritesToAdd; unused++) {

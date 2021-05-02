@@ -9,6 +9,7 @@ public class CellController : MonoBehaviour
     SpriteRenderer spriteRenderer;
     // logial indices into GameManager.grid[row, col]
     public Vector2Int indices;
+    public Sprite highlightSprite;
 
     void Start()
     {
@@ -33,14 +34,10 @@ public class CellController : MonoBehaviour
 
     void OnMouseDown() {
         // start the game once a cell is clicked
-        GameManager gameManager = GameManager.Instance;
-        if (gameManager.TitleScreen.activeSelf) {
-            gameManager.TitleScreen.SetActive(false);
-            gameManager.scoreText.gameObject.SetActive(true);
-        }
         if (selectedCell == null) { // nothing selected yet
             // if nothing on this cell, ignore
-            if (spriteRenderer.sprite != null && !IsHighlighted()) {
+            if (spriteRenderer.sprite != null && !IsHighlighted()
+            && spriteRenderer.sprite != highlightSprite) {
                 selectedCell = this;
                 Select();
             }
@@ -53,7 +50,6 @@ public class CellController : MonoBehaviour
             bool hasMoved = GameManager.Instance.TryMoveCell(selectedCell.indices, indices);
             if (hasMoved) { // deselect
                 selectedCell = null;
-                // Clear();
             }
             // else retains selection
         }
