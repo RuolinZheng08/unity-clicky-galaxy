@@ -10,6 +10,8 @@ public class GameManager : MonoBehaviour
     float pixelScale = 1;
     float randomValueThreshold = 0.8f; // fill only 20% of the cells on startup
 
+    // placeholder put into positions along a planet's move path
+    public Sprite highlightSprite;
     public List<Sprite> sprites;
     public GameObject cellPrefab;
 
@@ -74,18 +76,34 @@ public class GameManager : MonoBehaviour
         }
 
         // actually make the move
-        // TODO: use a coroutine for animation
         SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
         GameObject srcCell = grid[srcIndices.x, srcIndices.y];
         srcCell.GetComponent<CellController>().Clear();
+
+        StartCoroutine("MoveAlongPath", path);
         dstRenderer.sprite = srcRenderer.sprite;
         srcRenderer.sprite = null;
+
+        // logical update
         emptyIndices.Remove(dstIndices); // dst now occupied
         emptyIndices.Add(srcIndices); // src now empty
 
         // detect and score matches
         ScoreMatches(dstIndices.x, dstIndices.y, dstRenderer, false);
 
+        return true;
+    }
+
+    IEnumerator MoveAlongPath(List<Vector2Int> path) {
+        for (int i = 1; i < path.Count - 1; i++) {
+            SpriteRenderer renderer = GetSpriteRendererAtIndices(path[i].x, path[i].y);
+            renderer.sprite = highlightSprite;
+        }
+        yield return new WaitForSeconds(1);
+        for (int i = 1; i < path.Count - 1; i++) {
+            SpriteRenderer renderer = GetSpriteRendererAtIndices(path[i].x, path[i].y);
+            renderer.sprite = null;
+        }
         // add new sprites
         AddSprites();
 
@@ -93,29 +111,25 @@ public class GameManager : MonoBehaviour
         if (IsGridFull()) {
             GameOver();
         }
-
-        return true;
     }
 
     List<Vector2Int> BreadthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
         // identify a path from srcIndices to dstIndices, could be null
+        // the path include src and dst
         HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
-        Queue<Vector2Int> nodeQueue = new Queue<Vector2Int>();
         Queue<List<Vector2Int>> pathQueue = new Queue<List<Vector2Int>>();
 
         List<Vector2Int> startPath = new List<Vector2Int>();
         startPath.Add(srcIndices);
         pathQueue.Enqueue(startPath);
-        nodeQueue.Enqueue(srcIndices);
 
-        while (nodeQueue.Count > 0) {
-            Vector2Int node = nodeQueue.Dequeue();
+        while (pathQueue.Count > 0) {
+            List<Vector2Int> path = pathQueue.Dequeue();
+            Vector2Int node = path[path.Count - 1];
             if (visited.Contains(node)) {
                 continue;
             }
-            List<Vector2Int> path = pathQueue.Dequeue();
             if (node == dstIndices) { // done
-                path.Add(node);
                 return path;
             }
             visited.Add(node);
@@ -126,7 +140,6 @@ public class GameManager : MonoBehaviour
                     List<Vector2Int> newPath = new List<Vector2Int>(path);
                     newPath.Add(neighbor);
                     pathQueue.Enqueue(newPath);
-                    nodeQueue.Enqueue(neighbor);
                 }
             }
         }
@@ -163,6 +176,7 @@ public class GameManager : MonoBehaviour
     }
 
     void ScoreMatches(int row, int col, SpriteRenderer currRenderer, bool globalScan) {
+        Assert(currRenderer.sprite != highlightSprite);
         // if scanning globally, only need to scan to the right and up
         HashSet<Vector2Int> matchedIndices = new HashSet<Vector2Int>();
         // only horizontal and vertical matches are possible
