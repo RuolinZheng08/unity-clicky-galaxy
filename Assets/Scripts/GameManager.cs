@@ -227,6 +227,9 @@ public class GameManager : MonoBehaviour
             GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
             // mark cell as empty
             emptyIndices.Add(indices);
+            // remove highlight
+            GameObject cell = grid[indices.x, indices.y];
+            cell.GetComponent<CellController>().Clear();
         }
     }
 
