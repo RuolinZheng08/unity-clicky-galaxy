@@ -19,14 +19,18 @@ public class CellController : MonoBehaviour
         spriteRenderer.color = Color.grey;
     }
 
-    public void Deselect() {
+    public void Clear() {
         spriteRenderer.color = Color.white;
+    }
+
+    public void Highlight() {
+        spriteRenderer.color = Color.red;
     }
 
     void OnMouseDown() {
         if (selectedCell == null) { // nothing selected yet
             // if nothing on this cell, ignore
-            if (this.spriteRenderer.sprite != null) {
+            if (spriteRenderer.sprite != null) {
                 selectedCell = this;
                 Select();
             }
@@ -34,12 +38,12 @@ public class CellController : MonoBehaviour
         }
         if (selectedCell == this) { // deselect
             selectedCell = null;
-            Deselect();
+            Clear();
         } else { // try moving from selectedCell to this
             bool hasMoved = GameManager.Instance.TryMoveCell(selectedCell.indices, indices);
             if (hasMoved) { // deselect
                 selectedCell = null;
-                Deselect();
+                // Clear();
             }
             // else retains selection
         }

@@ -68,12 +68,16 @@ public class GameManager : MonoBehaviour
             return false;
         }
         // false also if there isn't a path from src to dest
+        List<Vector2Int> path = DepthFirstSearch(srcIndices, dstIndices);
+        if (path == null) {
+            return false;
+        }
 
         // actually make the move
         // TODO: use a coroutine for animation
         SpriteRenderer srcRenderer = GetSpriteRendererAtIndices(srcIndices.x, srcIndices.y);
         GameObject srcCell = grid[srcIndices.x, srcIndices.y];
-        srcCell.GetComponent<CellController>().Deselect();
+        srcCell.GetComponent<CellController>().Clear();
         dstRenderer.sprite = srcRenderer.sprite;
         srcRenderer.sprite = null;
         emptyIndices.Remove(dstIndices); // dst now occupied
@@ -93,6 +97,59 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    List<Vector2Int> DepthFirstSearch(Vector2Int srcIndices, Vector2Int dstIndices) {
+        // identify a path from srcIndices to dstIndices, could be null
+        HashSet<Vector2Int> visited = new HashSet<Vector2Int>();
+        Stack<Vector2Int> nodeStack = new Stack<Vector2Int>();
+        Stack<List<Vector2Int>> pathStack = new Stack<List<Vector2Int>>();
+        nodeStack.Push(srcIndices);
+        pathStack.Push(new List<Vector2Int>());
+
+        while (nodeStack.Count > 0) {
+            Vector2Int node = nodeStack.Pop();
+            if (visited.Contains(node)) {
+                continue;
+            }
+            List<Vector2Int> path = pathStack.Pop();
+            if (node == dstIndices) { // done
+                return path;
+            }
+            visited.Add(node);
+            List<Vector2Int> neighbors = GetNeighbors(node);
+            foreach (Vector2Int neighbor in neighbors) {
+                Sprite sprite = GetSpriteAtIndices(neighbor.x, neighbor.y);
+                if (sprite == null) { // can visit this next
+                    List<Vector2Int> newPath = new List<Vector2Int>(path);
+                    newPath.Add(neighbor);
+                    pathStack.Push(newPath);
+                    nodeStack.Push(neighbor);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    List<Vector2Int> GetNeighbors(Vector2Int indices) {
+        // return the four immediate neighbors, left, right, up, down
+        List<Vector2Int> neighbors = new List<Vector2Int>();
+        if (indices.x >= 0 && indices.x < gridDimension && indices.y >= 0 && indices.y < gridDimension) {
+            if (indices.y >= 1) {
+                neighbors.Add(new Vector2Int(indices.x, indices.y - 1));
+            }
+            if (indices.y < gridDimension - 1) {
+                neighbors.Add(new Vector2Int(indices.x, indices.y + 1));
+            }
+            if (indices.x >= 1) {
+                neighbors.Add(new Vector2Int(indices.x - 1, indices.y));
+            }
+            if (indices.x < gridDimension - 1) {
+                neighbors.Add(new Vector2Int(indices.x + 1, indices.y));
+            }
+        }
+        return neighbors;
+    }
+
     void GameOver() {
         Debug.Log("Game over!");
     }
@@ -100,8 +157,6 @@ public class GameManager : MonoBehaviour
     bool IsGridFull() {
         return emptyIndices.Count == 0;
     }
-
-
 
     void ScoreMatches(int row, int col, SpriteRenderer currRenderer, bool globalScan) {
         // if scanning globally, only need to scan to the right and up
@@ -155,14 +210,24 @@ public class GameManager : MonoBehaviour
             matchedIndices.Add(new Vector2Int(row, col)); // add myself
         }
 
+        StartCoroutine("HighlightAndRemoveMatches", matchedIndices);
+
+        // TODO: score
+    }
+
+    IEnumerator HighlightAndRemoveMatches(HashSet<Vector2Int> matchedIndices) {
+        // highlight
+        foreach (Vector2Int indices in matchedIndices) {
+            GameObject cell = grid[indices.x, indices.y];
+            cell.GetComponent<CellController>().Highlight();
+        }
+        yield return new WaitForSeconds(1);
         // remove
         foreach (Vector2Int indices in matchedIndices) {
             GetSpriteRendererAtIndices(indices.x, indices.y).sprite = null;
             // mark cell as empty
             emptyIndices.Add(indices);
         }
-
-        // TODO: score
     }
 
     void AddSprites() {
