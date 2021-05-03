@@ -7,7 +7,7 @@ using UnityEngine.Assertions;
 public class GameManager : MonoBehaviour
 {
     int minSpritesToAdd = 2;
-    int maxSpritesToAdd = 35; // note that int Range is exclusive
+    int maxSpritesToAdd = 5; // note that int Range is exclusive
     int gridDimension = 8;
     int scoreMultiplier = 10; // 10 points per planet
     float pixelScale = 1;
@@ -44,6 +44,8 @@ public class GameManager : MonoBehaviour
         Instance = this;
         score = 0;
         gameOverScreen.SetActive(false);
+        scoreText.gameObject.SetActive(false);
+        titleScreen.SetActive(true);
     }
 
     void Start() {
@@ -145,9 +147,12 @@ public class GameManager : MonoBehaviour
             renderer.sprite = null;
         }
         // add new sprites
+        SoundManager.Instance.PlaySound(SoundType.TypeAppear);
         foreach (Vector2Int indices in indicesToAddSprites) {
             SpriteRenderer renderer = GetSpriteRendererAtIndices(indices.x, indices.y);
             renderer.sprite = GetRandomSpriteForIndices(indices.x, indices.y, false);
+            GameObject cell = grid[indices.x, indices.y];
+            cell.GetComponent<ParticleManager>().PlayParticle(ParticleType.TypeAppear);
         }
 
         // detect endgame if grid is full
@@ -300,6 +305,7 @@ public class GameManager : MonoBehaviour
         foreach (Vector2Int indices in matchedIndices) {
             GameObject cell = grid[indices.x, indices.y];
             cell.GetComponent<CellController>().Highlight();
+            cell.GetComponent<ParticleManager>().PlayParticle(ParticleType.TypeMatch);
             // logically mark cell as empty before waiting
             emptyIndices.Add(indices);
         }

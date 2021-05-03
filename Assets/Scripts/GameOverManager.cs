@@ -10,6 +10,7 @@ public class GameOverManager : MonoBehaviour
     public TextMeshProUGUI newHighScoreText;
 
     void OnEnable() {
+        newHighScoreText.gameObject.SetActive(false);
         int score = PlayerPrefs.GetInt("score", 0);
         int highScore = LoadHighScore();
         if (score > highScore) {

@@ -4,6 +4,7 @@ using UnityEngine;
 
 public enum SoundType {
     TypeSelect,
+    TypeAppear,
     TypeMatch,
     TypeGameOver
 };

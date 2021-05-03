@@ -1118,6 +1118,7 @@ MonoBehaviour:
   clips:
   - {fileID: 8300000, guid: 689b7d9e284ed480a956acafffda186e, type: 3}
   - {fileID: 8300000, guid: 5cd5b52f94b3e4e3ab0ee85fc0fb93eb, type: 3}
+  - {fileID: 8300000, guid: 0da3accc103474c16a58a371fc1d40dc, type: 3}
   - {fileID: 8300000, guid: c561289d4989c4eae91bba56bc15479b, type: 3}
 --- !u!1 &976717766
 GameObject:
