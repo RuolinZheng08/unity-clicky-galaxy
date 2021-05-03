@@ -225,15 +225,14 @@ public class GameManager : MonoBehaviour
     }
 
     void GameOver() {
-        Debug.Log("Game over!");
+        Debug.Log("Game over! Score: " + score.ToString());
         ToggleColliders(false);
         // record score
-        PlayerPrefs.SetInt("score", score);
+        PlayerPrefs.SetInt("CurrentScore", score);
         PlayerPrefs.Save();
-        gameOverScreen.SetActive(true);
-        // stop bgm and play sound effect
+        // stop bgm and play sound effect on game over screen
         GameObject.Find("Main Camera").GetComponent<AudioSource>().Pause();
-        SoundManager.Instance.PlaySound(SoundType.TypeGameOver);
+        gameOverScreen.SetActive(true);
     }
 
     bool IsGridFull() {

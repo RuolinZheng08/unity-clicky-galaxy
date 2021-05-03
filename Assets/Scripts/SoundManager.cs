@@ -6,7 +6,8 @@ public enum SoundType {
     TypeSelect,
     TypeAppear,
     TypeMatch,
-    TypeGameOver
+    TypeGameOver,
+    TypeNewHighScore
 };
 
 public class SoundManager : MonoBehaviour

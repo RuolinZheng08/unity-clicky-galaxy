@@ -11,12 +11,15 @@ public class GameOverManager : MonoBehaviour
 
     void OnEnable() {
         newHighScoreText.gameObject.SetActive(false);
-        int score = PlayerPrefs.GetInt("score", 0);
+        int score = PlayerPrefs.GetInt("CurrentScore");
         int highScore = LoadHighScore();
         if (score > highScore) {
             highScore = score;
             SaveHighScore(highScore);
             newHighScoreText.gameObject.SetActive(true);
+            SoundManager.Instance.PlaySound(SoundType.TypeNewHighScore);
+        } else {
+            SoundManager.Instance.PlaySound(SoundType.TypeGameOver);
         }
         highScoreText.text = "highest score: " + highScore.ToString();
     }
@@ -26,11 +29,11 @@ public class GameOverManager : MonoBehaviour
     }
 
     int LoadHighScore() {
-        return PlayerPrefs.GetInt("highScore", 0);
+        return PlayerPrefs.GetInt("HighScore", 0);
     }
 
     void SaveHighScore(int highScore) {
-        PlayerPrefs.SetInt("highScore", highScore);
+        PlayerPrefs.SetInt("HighScore", highScore);
         PlayerPrefs.Save();
     }
 }
