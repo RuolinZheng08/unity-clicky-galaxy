@@ -7,7 +7,7 @@ using UnityEngine.Assertions;
 public class GameManager : MonoBehaviour
 {
     int minSpritesToAdd = 2;
-    int maxSpritesToAdd = 5; // note that int Range is exclusive
+    int maxSpritesToAdd = 35; // note that int Range is exclusive
     int gridDimension = 8;
     int scoreMultiplier = 10; // 10 points per planet
     float pixelScale = 1;
@@ -226,6 +226,9 @@ public class GameManager : MonoBehaviour
         PlayerPrefs.SetInt("score", score);
         PlayerPrefs.Save();
         gameOverScreen.SetActive(true);
+        // stop bgm and play sound effect
+        GameObject.Find("Main Camera").GetComponent<AudioSource>().Pause();
+        SoundManager.Instance.PlaySound(SoundType.TypeGameOver);
     }
 
     bool IsGridFull() {
@@ -281,8 +284,13 @@ public class GameManager : MonoBehaviour
             matchedIndices.Add(new Vector2Int(row, col)); // add myself
         }
 
-        StartCoroutine("HighlightAndRemoveMatches", matchedIndices);
+        if (matchedIndices.Count == 0) {
+            SoundManager.Instance.PlaySound(SoundType.TypeSelect);
+            return;
+        }
 
+        SoundManager.Instance.PlaySound(SoundType.TypeMatch);
+        StartCoroutine("HighlightAndRemoveMatches", matchedIndices);
         // accumulate score
         score += matchedIndices.Count * scoreMultiplier;
     }

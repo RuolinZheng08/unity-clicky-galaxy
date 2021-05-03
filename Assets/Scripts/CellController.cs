@@ -40,6 +40,7 @@ public class CellController : MonoBehaviour
             && spriteRenderer.sprite != highlightSprite) {
                 selectedCell = this;
                 Select();
+                SoundManager.Instance.PlaySound(SoundType.TypeSelect);
             }
             return;
         }
